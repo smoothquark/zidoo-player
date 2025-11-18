@@ -651,6 +651,7 @@ class ZidooRC(object):
             return_value["status"] = response.get("isPlay")
             result = response.get("music")
             if result is not None:
+                return_value["album"] = result.get("album")
                 return_value["title"] = result.get("title")
                 return_value["artist"] = result.get("artist")
                 return_value["track"] = result.get("number")
