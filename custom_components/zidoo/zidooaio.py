@@ -249,6 +249,21 @@ ZMUSIC_PLAYLISTTYPE = {
     ZMEDIA_TYPE_PLAYLIST: 5,
 }
 
+# converts a number to k/K or M (bps/Hz)
+def num_str(num, dec, dimen):
+    if num > 1000000:
+        dimen = "M" + dimen
+        num = num / 1000000
+    elif num > 1000:
+        dimen = "K" + dimen if dimen == "bps" else "k" + dimen
+        num = num / 1000
+
+    # check if num is not a whole number and if so, round to required decimals
+    if num % 1 == 0: num = round(num) 
+    else:            num = round(num, dec)
+    
+    return str(num) + " " + dimen
+
 
 class ZidooRC(object):
     """Zidoo Media Player Remote Control."""
@@ -543,7 +558,8 @@ class ZidooRC(object):
                 self._current_source = ZCONTENT_VIDEO
                 return {**return_value, **self._movie_info}
 
-        response = await self._get_music_playing_info()
+        #response = await self._get_music_playing_info()
+        response = await self._get_music_playing_info_v2()
         if response is not None:
             return_value = response
             return_value["source"] = "music"
@@ -678,6 +694,89 @@ class ZidooRC(object):
 
                 return return_value
         # _LOGGER.debug("music play info %s", str(response))
+        
+    async def _get_music_playing_info_v2(self) -> json:
+        """Async Get extra information from built in Music Player using API V2."""
+        return_value = {}
+        response = await self._req_json(
+            "ZidooMusicControl/" + "v2/getState", log_errors=False, timeout=TIMEOUT_INFO
+        )
+ 
+        if response is not None and response.get("state") != 0:
+            result = ""
+             
+            # common return values for LOCAL and DLNA
+            return_value["duration"] = response.get("duration")
+            return_value["position"] = response.get("position")
+            return_value["status"] = True if response.get("state") == 3 else False
+ 
+            self._music_type = response.get("volumeData").get("type")
+ 
+            # data depends on source
+            source = response.get("everSoloPlayInfo").get("playTypeSubtitle")
+            
+            if source == "LOCAL":
+               result = response.get("playingMusic")
+            else: 
+               result = response.get("everSoloPlayInfo").get("everSoloPlayAudioInfo")
+            
+            if result is not None and source == "LOCAL":
+                self._music_id = result.get("id")
+          
+                channels = result.get("channels") # default no. of channels
+                channels_second = result.get("channelsSecond")	# may be absent
+                extension = result.get("extension")
+                sacd_area = response.get("volumeData").get("sacdArea")
+
+                # no. of channels for multichannel SACD
+                if extension == "SACD" and sacd_area == 1 and channels_second is not None:
+                    channels = channels_second
+ 
+                return_value["album"] = result.get("album")
+                return_value["artist"] = result.get("artist")
+                return_value["bitrate"] = result.get("bitrate")
+                return_value["source_type"] = source
+                return_value["title"] = result.get("title")
+
+                # TO DO: need to get the following
+                #return_value["track"] = result.get("number")
+                #return_value["date"] = result.get("date")
+                #return_value["uri"] = result.get("uri")
+ 
+                return_value["audio"] = "{}: {} channels {} bits {}".format(
+                    extension,
+                    channels,
+                    result.get("bits"),
+                    result.get("sampleRate"),
+                )
+                 
+            elif result is not None: # "DLNA" or "Tidal connect" and source == "DLNA":
+                self._music_id = 0	 # no music id is retrievable for DLNA
+
+                bitrate = result.get("audioSampleRate")
+                bitrate *= result.get("audioChannels")
+                bitrate *= result.get("audioBitsPerSample")
+
+                return_value["album"] = result.get("albumName")
+                return_value["artist"] = result.get("artistName")
+                return_value["bitrate"] = num_str(bitrate, 2, "bps")
+                return_value["source_type"] = source
+                return_value["title"] = result.get("songName")
+ 
+                # TO DO: need to get the following
+                #return_value["track"] = result.get("number")
+                #return_value["date"] = result.get("date")
+                #return_value["uri"] = result.get("uri")
+ 
+                return_value["audio"] = "{}: {} channels {} bits {}".format(
+                    result.get("audioDecodec"),
+                    result.get("audioChannels"),
+                    result.get("audioBitsPerSample"),
+                    num_str(result.get("audioSampleRate"), 1, "Hz"),
+                )
+
+            return return_value
+        # _LOGGER.debug("music play info v2 %s", str(response))
 
     async def _get_movie_playing_info(self) -> json:
         """Async Get information from built in Movie Player."""
