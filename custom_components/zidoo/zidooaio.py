@@ -737,6 +737,7 @@ class ZidooRC(object):
                 return_value["album"] = result.get("album")
                 return_value["artist"] = result.get("artist")
                 return_value["bitrate"] = result.get("bitrate")
+                return_value["channels"] = channels
                 return_value["source_type"] = source
                 return_value["title"] = result.get("title")
 
@@ -762,6 +763,7 @@ class ZidooRC(object):
                 return_value["album"] = result.get("albumName")
                 return_value["artist"] = result.get("artistName")
                 return_value["bitrate"] = num_str(bitrate, 2, "bps")
+                return_value["channels"] = result.get("audioChannels")
                 return_value["source_type"] = source
                 return_value["title"] = result.get("songName")
 
