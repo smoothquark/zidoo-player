@@ -244,6 +244,7 @@ class ZidooMediaPlayer(ZidooEntity, MediaPlayerEntity):
             "fps",
             "audio",
             "video",
+            "source_type"
         }
         attributes = {}
         for item in extras:
