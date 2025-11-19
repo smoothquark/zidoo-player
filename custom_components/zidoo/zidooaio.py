@@ -9,6 +9,7 @@ References
 import asyncio
 import logging
 import json
+import re
 import socket
 import struct
 from aiohttp import ClientError, ClientSession, CookieJar
@@ -753,18 +754,27 @@ class ZidooRC(object):
                     result.get("sampleRate"),
                 )
 
-            elif result is not None: # "DLNA" or "Tidal connect" and source == "DLNA":
-                self._music_id = 0	 # no music id is retrievable for DLNA
+            elif result is not None:	# DLNA or Tidal Connect
+                self._music_id = 0	# no music id is retrievable for DLNA
 
                 bitrate = result.get("audioSampleRate")
                 bitrate *= result.get("audioChannels")
                 bitrate *= result.get("audioBitsPerSample")
 
+                # find DLNA subtype from icon if source is DLNA
+                dlna_subtype = source
+                if dlna_subtype == "DLNA":
+                    dlna_subtype = response.get("playingMusic").get("formIcon")
+                    dlna_subtype = re.sub(r"^.*musicplay_nav_", "", dlna_subtype)
+                    dlna_subtype = re.sub(r"_.*", "", dlna_subtype)
+                    dlna_subtype = re.sub(r"@.*", "", dlna_subtype)
+                dlna_subtype = dlna_subtype.upper()
+
                 return_value["album"] = result.get("albumName")
                 return_value["artist"] = result.get("artistName")
                 return_value["bitrate"] = num_str(bitrate, 2, "bps")
                 return_value["channels"] = result.get("audioChannels")
-                return_value["source_type"] = source
+                return_value["source_type"] = dlna_subtype
                 return_value["title"] = result.get("songName")
 
                 # TO DO: need to get the following
