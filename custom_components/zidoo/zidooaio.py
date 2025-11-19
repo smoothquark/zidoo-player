@@ -1014,6 +1014,52 @@ class ZidooRC(object):
         # api_volume = str(int(round(volume * 100)))
         return 0
 
+    async def get_audio_output_index(self) -> int:
+        """Async Return last known audio output using API V2."""
+
+        response = await self._req_json(
+            "ZidooMusicControl/v2/getInputAndOutputList", log_errors=False, timeout=TIMEOUT_INFO
+        )
+
+        if response is not None and response.get("status") == 200:
+            return response.get("outputIndex")
+        else:
+            return -1 
+
+    async def get_audio_output_list(self, log_errors=True) -> dict:
+        """Async Get the list of audio outputs.
+
+        Results
+            list of audio outputs
+                <audio output name>: <audio_output_tag>
+        """
+        return_values = {}
+
+        response = await self._req_json(
+            "ZidooMusicControl/v2/getInputAndOutputList", log_errors=log_errors
+        )
+
+        if response is not None and response.get("status") == 200:
+            for result in response["outputData"]:
+                if result.get("enable"):
+                    name = result.get("name")
+                    return_values[name] = result.get("tag")
+        return return_values        
+
+    async def load_audio_output_list(self) -> dict:
+        """Async Return audio output list."""
+        return await self.get_audio_output_list()
+
+    async def set_audio_output(self, output_tag, log_errors=True) -> bool:
+        """Async Set an audio output by audio output tag."""
+        response = await self._req_json(
+            "ZidooMusicControl/v2/setOutInputList?tag=" + output_tag
+        )
+
+        if response is not None and response.get("status") == 200:
+            return True            
+        return False
+
     async def get_app_list(self, log_errors=True) -> dict:
         """Async Get the list of installed apps.
 

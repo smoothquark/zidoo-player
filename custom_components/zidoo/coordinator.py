@@ -51,6 +51,11 @@ class ZidooCoordinator(DataUpdateCoordinator[None]):
         self._last_update = None
         self._last_state = MediaPlayerState.OFF
 
+        # audio outputs
+        self._audio_output_index = None
+        self._audio_output_list = None
+        self._audio_outputs = None
+
         super().__init__(
             hass,
             _LOGGER,
@@ -65,6 +70,14 @@ class ZidooCoordinator(DataUpdateCoordinator[None]):
     def state(self):
         """Gets status of device."""
         return self._state
+
+    async def async_refresh_audio_outputs(self, force=True):
+        """Update audio output list."""
+        if not force and not self._audio_output_list:
+            self._audio_outputs = await self.player.load_audio_output_list()
+            self._audio_output_list = []
+            for key in self._audio_outputs:
+                self._audio_output_list.append(key)
 
     async def async_refresh_channels(self, force=True):
         """Update source list."""
@@ -84,6 +97,11 @@ class ZidooCoordinator(DataUpdateCoordinator[None]):
         try:
             if self.player.is_connected():
                 state = MediaPlayerState.PAUSED
+
+                # get audio outputs
+                await self.async_refresh_audio_outputs(force=False)
+                self._audio_output_index = await self.player.get_audio_output_index()
+
                 await self.async_refresh_channels(force=False)
                 self._source = await self.player.get_source()
                 playing_info = await self.player.get_playing_info()
@@ -124,6 +142,10 @@ class ZidooCoordinator(DataUpdateCoordinator[None]):
             )
         self._state = state
 
+    async def async_set_audio_output(self, audio_output: str) -> None:
+        """Set audio output."""
+        await self._player.set_audio_output(self._audio_outputs[audio_output])
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the media player on."""
         if self._state == MediaPlayerState.OFF:
@@ -159,6 +181,16 @@ class ZidooCoordinator(DataUpdateCoordinator[None]):
     def media_info(self):
         """Info of current playing media."""
         return self._media_info
+
+    @property
+    def audio_output(self):
+        """Current audio_output."""
+        return self._audio_output_list[self._audio_output_index]
+
+    @property
+    def audio_output_list(self):
+        """Audio outputs List."""
+        return self._audio_output_list
 
     @property
     def source(self):
