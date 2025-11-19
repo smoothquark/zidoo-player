@@ -558,8 +558,10 @@ class ZidooRC(object):
                 self._current_source = ZCONTENT_VIDEO
                 return {**return_value, **self._movie_info}
 
+        # change to V2
         #response = await self._get_music_playing_info()
         response = await self._get_music_playing_info_v2()
+
         if response is not None:
             return_value = response
             return_value["source"] = "music"
@@ -694,35 +696,35 @@ class ZidooRC(object):
 
                 return return_value
         # _LOGGER.debug("music play info %s", str(response))
-        
+
     async def _get_music_playing_info_v2(self) -> json:
         """Async Get extra information from built in Music Player using API V2."""
         return_value = {}
         response = await self._req_json(
             "ZidooMusicControl/" + "v2/getState", log_errors=False, timeout=TIMEOUT_INFO
         )
- 
+
         if response is not None and response.get("state") != 0:
             result = ""
-             
+
             # common return values for LOCAL and DLNA
             return_value["duration"] = response.get("duration")
             return_value["position"] = response.get("position")
             return_value["status"] = True if response.get("state") == 3 else False
- 
+
             self._music_type = response.get("volumeData").get("type")
- 
+
             # data depends on source
             source = response.get("everSoloPlayInfo").get("playTypeSubtitle")
-            
+
             if source == "LOCAL":
-               result = response.get("playingMusic")
+                result = response.get("playingMusic")
             else: 
-               result = response.get("everSoloPlayInfo").get("everSoloPlayAudioInfo")
-            
+                result = response.get("everSoloPlayInfo").get("everSoloPlayAudioInfo")
+
             if result is not None and source == "LOCAL":
                 self._music_id = result.get("id")
-          
+
                 channels = result.get("channels") # default no. of channels
                 channels_second = result.get("channelsSecond")	# may be absent
                 extension = result.get("extension")
@@ -731,7 +733,7 @@ class ZidooRC(object):
                 # no. of channels for multichannel SACD
                 if extension == "SACD" and sacd_area == 1 and channels_second is not None:
                     channels = channels_second
- 
+
                 return_value["album"] = result.get("album")
                 return_value["artist"] = result.get("artist")
                 return_value["bitrate"] = result.get("bitrate")
@@ -742,14 +744,14 @@ class ZidooRC(object):
                 #return_value["track"] = result.get("number")
                 #return_value["date"] = result.get("date")
                 #return_value["uri"] = result.get("uri")
- 
+
                 return_value["audio"] = "{}: {} channels {} bits {}".format(
                     extension,
                     channels,
                     result.get("bits"),
                     result.get("sampleRate"),
                 )
-                 
+
             elif result is not None: # "DLNA" or "Tidal connect" and source == "DLNA":
                 self._music_id = 0	 # no music id is retrievable for DLNA
 
@@ -762,12 +764,12 @@ class ZidooRC(object):
                 return_value["bitrate"] = num_str(bitrate, 2, "bps")
                 return_value["source_type"] = source
                 return_value["title"] = result.get("songName")
- 
+
                 # TO DO: need to get the following
                 #return_value["track"] = result.get("number")
                 #return_value["date"] = result.get("date")
                 #return_value["uri"] = result.get("uri")
- 
+
                 return_value["audio"] = "{}: {} channels {} bits {}".format(
                     result.get("audioDecodec"),
                     result.get("audioChannels"),
